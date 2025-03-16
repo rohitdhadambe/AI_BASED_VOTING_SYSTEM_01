@@ -4,7 +4,7 @@ export default function Footer() {
         <div className="container mx-auto max-w-7xl px-6 grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Logo & Description */}
           <div>
-            <h2 className="text-2xl font-extrabold text-white">AI Voting System</h2>
+            <h2 className="text-xl font-extrabold text-white">AI Based Voting System</h2>
             <p className="mt-3 text-gray-400">A next-gen voting platform ensuring transparency, security, and ease of use with AI-powered technology.</p>
             <div className="flex space-x-4 mt-4">
               <a href="#" className="text-gray-400 hover:text-white transition duration-300"><i className="fab fa-facebook text-xl"></i></a>
@@ -46,8 +46,8 @@ export default function Footer() {
           </div>
         </div>
         
-        <div className="text-center text-gray-500 mt-8 border-t border-gray-700 pt-4">
-          &copy; 2025 AI Voting System. All Rights Reserved.
+        <div className="text-center text-white-500 mt-8 border-t border-gray-700 pt-4">
+          &copy; 2025 AI Based Voting System. All Rights Reserved.
         </div>
       </footer>
     );

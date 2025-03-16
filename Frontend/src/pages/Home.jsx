@@ -13,8 +13,8 @@ export default function Home() {
         className="relative w-full h-[80vh] flex items-center justify-center bg-cover bg-center text-white"
         style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: "contain" }}
       >
-        <div className="text-center max-w-2xl px-6 bg-black bg-opacity-80 p-10 rounded-lg">
-          <h1 className="text-5xl font-extrabold drop-shadow-lg">AI-Based Voting System</h1>
+        <div className="text-center max-w-2xl px-6 bg-black bg-opacity-90 p-10 rounded-lg">
+          <h1 className="text-5xl  text-green-300 font-extrabold drop-shadow-lg">AI-Based Voting System</h1>
           <p className="text-lg text-gray-200 mt-4">Secure, reliable, and efficient voting experience powered by AI technology.</p>
           <button 
             onClick={() => navigate("/upload")} 

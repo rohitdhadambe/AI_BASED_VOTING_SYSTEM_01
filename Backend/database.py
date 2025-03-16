@@ -1,40 +1,61 @@
 import psycopg2
 
-# Connect to your PostgreSQL database
+# Connect to PostgreSQL Database
 def connect_db():
     try:
         conn = psycopg2.connect(
-            dbname="Voting",   # The database name you created
-            user="postgres",   # The PostgreSQL username
-            password="rooot",  # The password you set during PostgreSQL installation
-            host="localhost",  # If PostgreSQL is running locally
-            port="5432"        # Default PostgreSQL port
+            dbname="Voting",   
+            user="postgres",   
+            password="rooot",  
+            host="localhost",  
+            port="5432"        
         )
         return conn
     except Exception as e:
         print(f"Error connecting to the database: {e}")
         return None
 
-# Create a new record (insert Aadhar number with has_voted as True or False)
-def insert_aadhar_number(aadhar_number, has_voted=True):
+# Check if Aadhaar or Phone number already exists
+def check_duplicate(aadhar_number, phone_number):
     conn = connect_db()
     if conn:
         cursor = conn.cursor()
         try:
-            # Check if the Aadhar number already exists
-            cursor.execute("SELECT * FROM aadhar_numbers WHERE aadhar_number = %s", (aadhar_number,))
-            if cursor.fetchone():
-                print("Aadhar number already exists in the database.")
-            else:
-                # Insert the Aadhar number into the table and mark as voted
-                cursor.execute(
-                    "INSERT INTO aadhar_numbers (aadhar_number, has_voted) VALUES (%s, %s)", 
-                    (aadhar_number, has_voted)
-                )
-                conn.commit()
-                print("Aadhar number inserted successfully and marked as voted.")
+            cursor.execute("""
+                SELECT * FROM aadhar_numbers 
+                WHERE entered_aadhar = %s OR extracted_aadhar = %s OR phone_number = %s
+            """, (aadhar_number, aadhar_number, phone_number))
+            
+            return cursor.fetchone() is not None  # True if record exists
         except Exception as e:
-            print(f"Error during insertion: {e}")
+            print(f"Error during duplicate check: {e}")
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+    return False
+
+# Insert Aadhaar data (Only if entered and extracted Aadhaar match)
+def insert_aadhar_data(name, phone_number, entered_aadhar, extracted_aadhar):
+    if entered_aadhar != extracted_aadhar:
+        return {"success": False, "message": "Entered Aadhaar does not match extracted Aadhaar."}
+
+    if check_duplicate(entered_aadhar, phone_number):  
+        return {"success": False, "message": "Aadhaar number or phone number already registered."}
+
+    conn = connect_db()
+    if conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO aadhar_numbers (name, phone_number, entered_aadhar, extracted_aadhar, has_voted) 
+                VALUES (%s, %s, %s, %s, %s)
+            """, (name, phone_number, entered_aadhar, extracted_aadhar, False))  # Initially, has_voted = False
+            
+            conn.commit()
+            return {"success": True, "message": "Aadhaar successfully registered. You can now vote."}
+        except Exception as e:
+            return {"success": False, "message": f"Database error: {e}"}
         finally:
             cursor.close()
             conn.close()
@@ -45,31 +66,61 @@ def check_voted(aadhar_number):
     if conn:
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT has_voted FROM aadhar_numbers WHERE aadhar_number = %s", (aadhar_number,))
+            cursor.execute("""
+                SELECT has_voted FROM aadhar_numbers 
+                WHERE entered_aadhar = %s OR extracted_aadhar = %s
+            """, (aadhar_number, aadhar_number))
+            
             result = cursor.fetchone()
             if result:
-                return result[0]  # Return True or False
+                return result[0]  # True if voted, False otherwise
             else:
-                print("Aadhar number not found in the database.")
-                return None
+                return None  # Aadhaar not found
         except Exception as e:
-            print(f"Error during check: {e}")
+            print(f"Error during vote check: {e}")
+            return None
         finally:
             cursor.close()
             conn.close()
 
-# Example usage
+# Mark user as voted
+def mark_as_voted(aadhar_number):
+    conn = connect_db()
+    if conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                UPDATE aadhar_numbers 
+                SET has_voted = TRUE 
+                WHERE entered_aadhar = %s OR extracted_aadhar = %s
+            """, (aadhar_number, aadhar_number))
+            
+            conn.commit()
+            return {"success": True, "message": "User has successfully voted."}
+        except Exception as e:
+            return {"success": False, "message": f"Error updating vote status: {e}"}
+        finally:
+            cursor.close()
+            conn.close()
+
+# Example Usage
 if __name__ == "__main__":
-    # Example Aadhar number
-    aadhar_number = "123456789012"
-    
-    # Insert Aadhar number and mark as voted
-    insert_aadhar_number(aadhar_number, has_voted=True)
-    
+    # Example Test Cases
+    user_data = {
+        "name": "John Doe",
+        "phone_number": "9876543210",
+        "entered_aadhar": "123456789012",
+        "extracted_aadhar": "123456789012"
+    }
+
+    # Register user
+    print(insert_aadhar_data(**user_data))
+
     # Check if the user has voted
-    has_voted = check_voted(aadhar_number)
-    if has_voted is not None:
-        if has_voted:
-            print("This user has already voted.")
-        else:
-            print("This user can vote.")
+    print(check_voted(user_data["entered_aadhar"]))
+
+    # Mark user as voted
+    print(mark_as_voted(user_data["entered_aadhar"]))
+
+    # Check again after voting
+    print(check_voted(user_data["entered_aadhar"]))

@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS  # Import CORS
+from flask_cors import CORS
 from extract_aadhar import extract_text, extract_aadhar_number
-from database import insert_aadhar_number, check_voted
+from database import insert_aadhar_data, check_voted, check_duplicate
 
 app = Flask(__name__)
-CORS(app)  # Ensure CORS is enabled for all domains
+CORS(app)
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
@@ -12,41 +12,41 @@ def upload_image():
         return jsonify({"message": "No file uploaded", "redirect": False}), 400
 
     file = request.files['file']
-    if file.filename == '':
-        return jsonify({"message": "No selected file", "redirect": False}), 400
+    entered_aadhar = request.form.get("entered_aadhar")
+    phone_number = request.form.get("phone_number")
+    name = request.form.get("name")
 
-    # Save the uploaded file locally
+    if not entered_aadhar or not phone_number or not name:
+        return jsonify({"message": "Missing required fields", "redirect": False}), 400
+
     file_path = f"./uploads/{file.filename}"
     file.save(file_path)
 
-    # Extract text from the image
     try:
         extracted_text = extract_text(file_path)
         aadhar_numbers = extract_aadhar_number(extracted_text)
 
         if not aadhar_numbers:
-            return jsonify({"message": "No valid Aadhar number found", "redirect": False}), 400
+            return jsonify({"message": "No valid Aadhaar number found", "redirect": False}), 400
 
-        aadhar_number = aadhar_numbers[0]  # Use the first valid Aadhar number
+        extracted_aadhar = aadhar_numbers[0]
 
-        # Check if the user has already voted
-        has_voted = check_voted(aadhar_number)
-        if has_voted is None:
-            # New Aadhar number, insert it and mark as voted
-            insert_aadhar_number(aadhar_number, has_voted=True)
-            response_data = {"message": "Aadhar number added. Redirecting to vote page.", "redirect": True}
-        elif has_voted:
-            response_data = {"message": "This user has already voted.", "redirect": False}
-        else:
-            response_data = {"message": "User can vote.", "redirect": True}
+        # Check if entered and extracted Aadhaar numbers match
+        if entered_aadhar != extracted_aadhar:
+            return jsonify({"message": "Entered Aadhaar does not match extracted Aadhaar.", "redirect": False}), 400
 
-        # Log response data on the backend to ensure it is correct
-        print("Sending response:", response_data)
+        # Check if the Aadhaar number or phone number is already in the database
+        if check_duplicate(entered_aadhar, phone_number):
+            return jsonify({"message": "Aadhaar or Phone number already used for voting.", "redirect": False}), 400
 
-        return jsonify(response_data), 200
+        # Insert record into the database
+        insert_aadhar_data(name, phone_number, entered_aadhar, extracted_aadhar)  # ✅ Correct number of arguments
+
+
+        return jsonify({"message": "Aadhaar verified successfully! Redirecting to vote page.", "redirect": True}), 200
+
     except Exception as e:
         return jsonify({"message": f"An error occurred: {str(e)}", "redirect": False}), 500
-
 
 if __name__ == "__main__":
     app.run(debug=True)

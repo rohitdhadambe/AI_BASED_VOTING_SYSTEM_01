@@ -7,4 +7,4 @@ import { StrictMode } from 'react'
    <StrictMode>
      <App />
    </StrictMode>,
- )
+ ) 
